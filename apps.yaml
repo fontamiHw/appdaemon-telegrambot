@@ -1,16 +1,46 @@
+---
+#hello_world:
+#module: hello
+#class: HelloWorld
+
+# this is my first Telegram bot
+#telegram_bot:
+ #module: mainAppDaemon
+ #class: Civico129BotDaemon
+ #configFile: /share/appDaemon/telegram/appData.yaml
+
 TelegramBot:
   module:                   TelegramBot
   class:                    TelegramBot
   debug:                    True
-  extend_system:            "sensor.fritz_netmonitor_external_ip,sensor.fritz_netmonitor_transmission_rate_down,sensor.fritz_netmonitor_transmission_rate_up"
-  filter_blacklist:    
-    - "network_in"
-#  filter_whitelist:
-#    - sample
+  entity_icons:
+    pippo:  "papero"
+    ciapa: eccolo
+    switch: "\U0001F39A "
+    light: "\U0001F4A1 "
+    alarm: "\U0001F6A8 "
+  extend_system:            sensor.date
+  extend_light:             switch.glass_light,switch.doccia_taverna
+  extend_alarm:             input_boolean.out_of_home
+  filter_blacklist: 
+    - sensor.fritz7330
+    - sensor.moto_g_9
+    - sensor.silvia
+    - sensor.u.s.
+    - sensor.system_monitor
+    - sensor.chinese
+    - sensor.sun
+    - sensor.corolla
+  filter_whitelist: 
+    - switch
+    - input_boolean
+    - sensor
+    - light
   routing:
     waze:
       region:               EU
       avoid_toll_roads:     True
+  telegram_id: !secret telegram_civico_group_id
   hass:
-    token: !secret ha_token
-    ha_url: http://hass:8123
+    token: !secret tokentelegram
+    ha_url: http://10.58.1.2:8123

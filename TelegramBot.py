@@ -3,33 +3,35 @@ import re
 import hashlib
 import ast
 from datetime import datetime
+from entities.Switch import Switch
+from entities.Light import Light
+from entities.Alarm import Alarm
 
 class TelegramBot(BaseClass):
 
     def initialize(self):
 
+        #"/state_cover": {"desc": "State of cover", "method": self._cmd_state_cover},
+        #"/turnon_automation": {"desc": "Turn on automation", "method": self._cmd_turn_on_automation},
+        #"/turnoff_automation": {"desc": "Turn off automation", "method": self._cmd_turn_off_automation},
+        #"/trigger_automation": {"desc": "Trigger automation", "method": self._cmd_trigger_automation},
+        #"/state_automation": {"desc": "State of automation", "method": self._cmd_state_automation},
+        #"/get_log": {"desc": "Get last lines of the home-assistant log", "method": self._cmd_get_log},
+        #"/get_error_log": {"desc": "Get home-assistant error log", "method": self._cmd_get_error_log}
+        #"/state_vacuum": {"desc": "State of vacuum", "method": self._cmd_state_vacuum},
+        #"/state_climate": {"desc": "State of climate", "method": self._cmd_state_climate},
+        #"/state_person": {"desc": "State of person", "method": self._cmd_state_person},
+        #"/open_cover": {"desc": "Open cover", "method": self._cmd_open_cover},
+        #"/close_cover": {"desc": "Close cover", "method": self._cmd_close_cover},
+        #"/start_vacuum": {"desc": "Start vacuum", "method": self._cmd_start_vacuum},
+        #"/stop_vacuum": {"desc": "Stop running vacuum", "method": self._cmd_stop_vacuum},
+
         self._commanddict = {"/help": {"desc": "Help", "method": self._cmd_help},
-                             "/state_cover": {"desc": "State of cover", "method": self._cmd_state_cover},
-                             "/state_vacuum": {"desc": "State of vacuum", "method": self._cmd_state_vacuum},
-                             "/state_light": {"desc": "State of light", "method": self._cmd_state_light},
-                             "/state_climate": {"desc": "State of climate", "method": self._cmd_state_climate},
-                             "/state_person": {"desc": "State of person", "method": self._cmd_state_person},
-                             "/open_cover": {"desc": "Open cover", "method": self._cmd_open_cover},
-                             "/close_cover": {"desc": "Close cover", "method": self._cmd_close_cover},
-                             "/turnoff_light": {"desc": "Turn off light", "method": self._cmd_turn_off_light},
-                             "/turnon_light": {"desc": "Turn on light", "method": self._cmd_turn_on_light},
-                             "/start_vacuum": {"desc": "Start vacuum", "method": self._cmd_start_vacuum},
-                             "/stop_vacuum": {"desc": "Stop running vacuum", "method": self._cmd_stop_vacuum},
                              "/restart_hass": {"desc": "Restart hass", "method": self._cmd_restart_hass},
                              "/state_system": {"desc": "State of home-assistant", "method": self._cmd_state_system},
                              "/state_sensor": {"desc": "State of sensors", "method": self._cmd_state_sensor},
-                             "/get_version": {"desc": "Get version of telegrambot", "method": self._cmd_get_version},
-                             "/turnon_automation": {"desc": "Turn on automation", "method": self._cmd_turn_on_automation},
-                             "/turnoff_automation": {"desc": "Turn off automation", "method": self._cmd_turn_off_automation},
-                             "/trigger_automation": {"desc": "Trigger automation", "method": self._cmd_trigger_automation},
-                             "/state_automation": {"desc": "State of automation", "method": self._cmd_state_automation},
-                             "/get_log": {"desc": "Get last lines of the home-assistant log", "method": self._cmd_get_log},
-                             "/get_error_log": {"desc": "Get home-assistant error log", "method": self._cmd_get_error_log}}
+                             "/get_version": {"desc": "Get version of telegrambot", "method": self._cmd_get_version}}
+        
         #[...]Data to be sent in a callback query to the bot when button is pressed, 1-64 bytes[...]
         #https://core.telegram.org/bots/api
         self._callbackdict = {"/clb_restart_hass": {"desc": "Restart hass", "method": self._clb_restart_hass},
@@ -37,8 +39,6 @@ class TelegramBot(BaseClass):
                               "/clb_stop_vacuum": {"desc": "Start vacuum", "method": self._clb_stop_vacuum},
                               "/clb_open_cover": {"desc": "Open cover", "method": self._clb_open_cover},
                               "/clb_close_cover": {"desc": "Close cover", "method": self._clb_close_cover},
-                              "/clb_turnoff_light": {"desc": "Turn off light", "method": self._clb_turn_off_light},
-                              "/clb_turnon_light": {"desc": "Turn on light", "method": self._clb_turn_on_light},
                               "/clb_turnoff_autom": {"desc": "Turn off automation", "method": self._clb_turn_off_autom},
                               "/clb_turnon_autom": {"desc": "Turn on automation", "method": self._clb_turn_on_autom},
                               "/clb_trigger_autom": {"desc": "Trigger automation", "method": self._clb_trigger_autom}}
@@ -53,8 +53,8 @@ class TelegramBot(BaseClass):
         self.listen_event(self._appdaemon_restarted, 'appd_started')
         self._entityid_hash_dict = dict()
         self._hash_entityid_dict = dict()
-        self._version="1.2.3"
-        
+        self._version="2.0.0"
+
         self._log_debug(self.args)
 
         #handle extend
@@ -62,17 +62,17 @@ class TelegramBot(BaseClass):
         if self.args["extend_system"] is not None and self.args["extend_system"]!="":
             self._extend_system=self.args["extend_system"].split(',')
         self._log_debug(f"extend_system: {self._extend_system}")
-
-        self._extend_light = list()
-        if self.args.get("extend_light",None) is not None and self.args.get("extend_light")!="":
-            self._extend_light=self.args["extend_light"].split(',')
-        self._log_debug(f"extend_light: {self._extend_light}")
-
+        
         self._filter_blacklist = None
         if self.args.get("filter_blacklist", None) is not None and self.args.get("filter_blacklist")!="":
             self._filter_blacklist=self.args.get("filter_blacklist")
         self._log_debug(f"filter_blacklist: {self._filter_blacklist}")
         
+        self._entity_icons = None
+        if self.args.get("entity_icons", None) is not None and self.args.get("entity_icons")!="":
+            self._entity_icons=self.args.get("entity_icons")
+        self._log_debug(f"entity_icons: {self._entity_icons}")
+
         self._filter_whitelist = None
         if self.args.get("filter_whitelist", None) is not None and self.args.get("filter_whitelist")!="":
             self._filter_whitelist=self.args.get("filter_whitelist")
@@ -84,31 +84,40 @@ class TelegramBot(BaseClass):
         self._hass = self.args.get("hass", None)
         self._log_debug(f"hass: {self._hass}")
 
+        self._telegram_id = self.args.get("telegram_id", None)
+        self._log_debug(f"telegram_id: {self._telegram_id}")
+        
+        # prepare class at the end caching the statedict
+        self.statedict = self._get_state_filtered()
+        self.switch = Switch(self, '^switch.*', "extend_switch", self._entity_icons["switch"], self.statedict)
+        self.light = Light(self, '^light.*', "extend_light",self._entity_icons["light"], self.statedict)
+        self.alarm = Alarm(self, '^input_boolean.*external_cam', "extend_alarm", self._entity_icons["alarm"], self.statedict)
+
 
     def _receive_telegram_command(self, event_id, payload_event, *args):
-        user_id = payload_event['user_id']
+        user_id = self._telegram_id # payload_event['user_id']
         chat_id = payload_event['chat_id']
         command = payload_event['command'].lower()
 
-        self._log_debug(f"Telegram Command: user_id: {user_id}, chat_id: {chat_id}, command: {command}")
+        self._log_debug(f"Telegram Command: user_id: {self._telegram_id}, chat_id: {chat_id}, command: {command}")
         self._log_debug(f"Paylod_event: {payload_event}")
 
         if command in self._commanddict:
             method = self._commanddict.get(command).get('method')
-            method(user_id)
+            method(self._telegram_id)
         else:
             msg = f"Unkown command {command}. Use /help to get a list of all available commands."
             self.call_service(
                 'telegram_bot/send_message',
-                target=user_id,
+                target=self._telegram_id,
                 message=self._escape_markdown(msg))
-    
+
     def _receive_telegram_text(self, event_id, payload_event, *args):
-        user_id = payload_event['user_id']
+        user_id = self._telegram_id # payload_event['user_id']
         chat_id = payload_event['chat_id']
         text = ast.literal_eval(payload_event.get('text'))
 
-        self._log_debug(f"Telegram Command: user_id: {user_id}, chat_id: {chat_id}, text: {text}")
+        self._log_debug(f"Telegram Command: user_id: {self._telegram_id}, chat_id: {chat_id}, text: {text}")
         self._log_debug(f"Paylod_event: {payload_event}")
 
         #check if location was sent
@@ -116,7 +125,7 @@ class TelegramBot(BaseClass):
             location = text.get('location',dict())
             longitude = location.get('longitude',None)
             latitude = location.get('latitude',None)
-            self._compute_travel_time(user_id, longitude, latitude)
+            self._compute_travel_time(self._telegram_id, longitude, latitude)
 
     def _escape_markdown(self, msg):
         msg = msg.replace("`", "\\`")
@@ -126,6 +135,7 @@ class TelegramBot(BaseClass):
         return msg
 
     def _cmd_help(self, target_id):
+        self.statedict = self._get_state_filtered()
         msg = "The following commands are available:\n/help: This help\n"
         keyboard_options=list()
         for command in self._commanddict:
@@ -133,7 +143,7 @@ class TelegramBot(BaseClass):
             msg += f"{command} : {desc}\n"
             button=command.replace("/","").replace("_"," ")
             keyboard_options.append({
-                'description': desc, 
+                'description': desc,
                 'url': command,
                 'button': button})
         self._log_debug(msg)
@@ -193,25 +203,6 @@ class TelegramBot(BaseClass):
         self._log_debug(msg)
         self._send_message(msg, target_id)
 
-    def _cmd_state_light(self, target_id):
-        statedict = self._get_state_filtered()
-        msg=""
-        for entity in statedict:
-            if re.match('^light.*', entity, re.IGNORECASE):
-                self._log_debug(statedict.get(entity))
-                state = statedict.get(entity).get("state")
-                desc = self._getid(statedict,entity)
-                msg += f"{desc}\nstate: {state}\n\n"
-                
-        for entity in self._extend_light:
-            l = entity.strip()
-            self._log_debug(l)
-            state = self.get_state(l)
-            desc = self._getid(statedict, l)
-            msg += f"{desc}\nstate: {state}\n\n"
-
-        self._log_debug(msg)
-        self._send_message(msg, target_id)
 
     def _cmd_state_climate(self, target_id):
         statedict = self._get_state_filtered()
@@ -259,7 +250,7 @@ class TelegramBot(BaseClass):
         statedict = self._get_state_filtered()
         keyboard_options=list()
         keyboard_options.append({
-                    'description': f"Open all covers", 
+                    'description': f"Open all covers",
                     'url':f"/clb_open_cover?entity_id=all"})
         for entity in statedict:
             if re.match('^cover.*', entity, re.IGNORECASE):
@@ -267,9 +258,9 @@ class TelegramBot(BaseClass):
                 hashvalue = self._get_hash_from_entityid(entity)
                 desc = self._getid(statedict,entity)
                 keyboard_options.append({
-                    'description': f"{desc}", 
+                    'description': f"{desc}",
                     'url':f"/clb_open_cover?entity_id={hashvalue}"})
-        
+
         self._build_keyboard_answer(keyboard_options, target_id, msg)
 
     def _cmd_close_cover(self, target_id):
@@ -277,7 +268,7 @@ class TelegramBot(BaseClass):
         statedict = self._get_state_filtered()
         keyboard_options=list()
         keyboard_options.append({
-                    'description': f"Close all covers", 
+                    'description': f"Close all covers",
                     'url':f"/clb_close_cover?entity_id=all"})
         for entity in statedict:
             if re.match('^cover.*', entity, re.IGNORECASE):
@@ -285,9 +276,9 @@ class TelegramBot(BaseClass):
                 hashvalue = self._get_hash_from_entityid(entity)
                 desc = self._getid(statedict,entity)
                 keyboard_options.append({
-                    'description': f"{desc}", 
+                    'description': f"{desc}",
                     'url':f"/clb_close_cover?entity_id={hashvalue}"})
-        
+
         self._build_keyboard_answer(keyboard_options, target_id, msg)
 
     def _clb_close_cover(self, target_id, paramdict):
@@ -313,113 +304,7 @@ class TelegramBot(BaseClass):
                               entity_id=entity_id)
         else:
             msg = "Unkown entity. Please do not resent old commands!"
-            self._send_message(msg, target_id)
-
-    def _cmd_turn_off_light(self, target_id):
-        msg = "Which light do you want to turn off?\n\n"
-        statedict = self._get_state_filtered()
-        keyboard_options=list()
-        keyboard_options.append({
-                    'description': f"Turn off all lights", 
-                    'url':f"/clb_turnoff_light?entity_id=all"})
-        for entity in statedict:
-            if re.match('^light.*', entity, re.IGNORECASE):
-                self._log_debug(statedict.get(entity))
-                hashvalue = self._get_hash_from_entityid(entity)
-                desc = self._getid(statedict,entity)
-                keyboard_options.append({
-                    'description': f"{desc}", 
-                    'url':f"/clb_turnoff_light?entity_id={hashvalue}"})
-        
-        for entity in self._extend_light:
-            self._log_debug(statedict.get(entity))
-            hashvalue = self._get_hash_from_entityid(entity)
-            desc = self._getid(statedict,entity)
-            keyboard_options.append({
-                'description': f"{desc}", 
-                'url':f"/clb_turnoff_light?entity_id={hashvalue}"})
-        
-        self._build_keyboard_answer(keyboard_options, target_id, msg,)
-
-    def _clb_turn_off_light(self, target_id, paramdict):
-        hashvalue = paramdict.get("entity_id")
-        entity_id = self._get_entityid_from_hash(hashvalue)
-        if hashvalue == "all":
-            self.call_service("light/turn_off", entity_id="all")
-            msg = "Turn off all lights!"
-            self._send_message(msg, target_id)
-            self.call_service(
-                'telegram_bot/answer_callback_query',
-                message=self._escape_markdown(msg),
-                callback_query_id=target_id)
-        elif entity_id is not None:
-            friendly_name = self.get_state(entity_id, attribute="friendly_name")
-            msg=f"Turn off light {entity_id} ({friendly_name})"
-            self._send_message(msg, target_id)
-            self.call_service(
-                'telegram_bot/answer_callback_query',
-                message=self._escape_markdown(msg),
-                callback_query_id=target_id)
-            self._turn_off(entity_id)
-
-        else:
-            msg = "Unkown entity. Please do not resent old commands!"
-            self._send_message(msg, target_id)
-
-    def _cmd_turn_on_light(self, target_id):
-        msg = "Which light do you want to turn on?\n\n"
-        statedict = self._get_state_filtered()
-        keyboard_options=list()
-        keyboard_options.append({
-                    'description': f"Turn on all lights", 
-                    'url':f"/clb_turnon_light?entity_id=all"})
-        for entity in statedict:
-            if re.match('^light.*', entity, re.IGNORECASE):
-                self._log_debug(statedict.get(entity))
-                hashvalue = self._get_hash_from_entityid(entity)
-                desc = self._getid(statedict,entity)
-                keyboard_options.append({
-                    'description': f"{desc}", 
-                    'url':f"/clb_turnon_light?entity_id={hashvalue}"})
-                    
-        for entity in self._extend_light:
-            self._log_debug(statedict.get(entity))
-            hashvalue = self._get_hash_from_entityid(entity)
-            desc = self._getid(statedict,entity)
-            keyboard_options.append({
-                'description': f"{desc}", 
-                'url':f"/clb_turnon_light?entity_id={hashvalue}"})
-        
-        self._build_keyboard_answer(keyboard_options, target_id, msg)
-
-    def _clb_turn_on_light(self, target_id, paramdict):
-        hashvalue = paramdict.get("entity_id")
-        entity_id = self._get_entityid_from_hash(hashvalue)
-        if hashvalue == "all":
-            self.call_service("light/turn_on", entity_id="all")
-            msg = "Turn on all lights!"
-            self._send_message(msg, target_id)
-            self.call_service(
-                'telegram_bot/answer_callback_query',
-                message=self._escape_markdown(msg),
-                callback_query_id=target_id)
-        elif entity_id is not None:
-            friendly_name = self.get_state(entity_id, attribute="friendly_name")
-            msg=f"Turn on light {entity_id} ({friendly_name})"
-            self._send_message(msg, target_id)
-            self.call_service(
-                'telegram_bot/answer_callback_query',
-                message=self._escape_markdown(msg),
-                callback_query_id=target_id)
-            self._turn_on(entity_id)
-        else:
-            msg = "Unkown entity. Please do not resent old commands!"
-            self._send_message(msg, target_id)
-            self.call_service(
-                'telegram_bot/answer_callback_query',
-                message=self._escape_markdown(msg),
-                callback_query_id=target_id,
-                show_alert=True)
+            self._send_message(msg, target_id)    
 
     def _cmd_restart_hass(self, target_id):
         msg = "Restart home-assistant?"
@@ -440,9 +325,9 @@ class TelegramBot(BaseClass):
                 battery_level = statedict.get(entity).get(
                         "attributes").get("battery_level")
                 keyboard_options.append({
-                    'description': f"{desc}\nstate: {state}\nbattery_level: {battery_level}", 
+                    'description': f"{desc}\nstate: {state}\nbattery_level: {battery_level}",
                     'url':f"/clb_start_vacuum?entity_id={hashvalue}"})
-        
+
         self._build_keyboard_answer(keyboard_options, target_id, msg)
 
     def _clb_start_vacuum(self, target_id, paramdict):
@@ -480,7 +365,7 @@ class TelegramBot(BaseClass):
                 battery_level = statedict.get(entity).get(
                         "attributes").get("battery_level")
                 keyboard_options.append({
-                    'description': f"{desc}\nstate: {state}\nbattery_level: {battery_level}", 
+                    'description': f"{desc}\nstate: {state}\nbattery_level: {battery_level}",
                     'url':f"/clb_stop_vacuum?entity_id={hashvalue}"})
 
         self._build_keyboard_answer(keyboard_options, target_id, msg)
@@ -510,23 +395,30 @@ class TelegramBot(BaseClass):
         self._log_debug(f"Paylod_event: {payload_event}")
 
         if "?" in data_callback:
+            self._log_debug("MIK")
             callback, params = data_callback.split("?")
         else:
+            self._log_debug("MIK1")
             callback = data_callback
             params = None
         if params is not None:
+            self._log_debug("MIK2")
             params = dict(item.split("=") for item in params.split(";"))
         if callback in self._callbackdict:
+            self._log_debug("MIK3")
             method = self._callbackdict.get(callback).get('method')
             method(target_id=callback_id, paramdict=params)
         if callback in self._commanddict:
+            self._log_debug("MIK4")
             method = self._commanddict.get(callback).get('method')
             method(target_id=callback_id)
             #https://python-telegram-bot.readthedocs.io/en/stable/telegram.callbackquery.html
-            #After the user presses an inline button, Telegram clients will display a progress 
-            #bar until you call answer. It is, therefore, necessary to react by calling 
-            #telegram.Bot.answer_callback_query even if no notification to the user is needed 
+            #After the user presses an inline button, Telegram clients will display a progress
+            #bar until you call answer. It is, therefore, necessary to react by calling
+            #telegram.Bot.answer_callback_query even if no notification to the user is needed
             #(e.g., without specifying any of the optional parameters).
+            self._log_debug("MIK5")
+            self._log_debug(f"MIK ----  telegram_bot/answer_callback_query, message=,callback_query_id={callback_id}")
             self.call_service(
                 'telegram_bot/answer_callback_query',
                 message="",
@@ -559,7 +451,7 @@ class TelegramBot(BaseClass):
                 callback_query_id=target_id)
 
     def _get_hash_from_entityid(self, entity_id):
-        h = self._entityid_hash_dict.get(entity_id,None) 
+        h = self._entityid_hash_dict.get(entity_id,None)
         if h is None:
             h = hashlib.md5(entity_id.encode('utf-8')).hexdigest()
             self._entityid_hash_dict.update({entity_id: h})
@@ -622,7 +514,7 @@ class TelegramBot(BaseClass):
                         'process',
                         'last_boot']
         msg = ""
-        
+
         statedict = self._get_state_filtered()
         for entity in statedict:
             if re.match(f"^sensor.({'|'.join(sensorlist)}).*", entity, re.IGNORECASE):
@@ -631,7 +523,7 @@ class TelegramBot(BaseClass):
                 unit_of_measurement=self.get_state(entity, attribute='unit_of_measurement')
                 if state is not None:
                     msg+=f"{desc}: {state}{unit_of_measurement}\n"
-        
+
         for sensor in self._extend_system:
             s = sensor.strip()
             self._log_debug(s)
@@ -645,7 +537,7 @@ class TelegramBot(BaseClass):
 
         self._log_debug(msg)
         self._send_message(msg, target_id)
-            
+
     def _cmd_get_version(self, target_id):
         msg = f"TelegramBot Version: {self._version}"
         self._send_message(msg, target_id)
@@ -670,10 +562,10 @@ class TelegramBot(BaseClass):
             if count % keyboard_width == 0:
                 keyboard.append(keyboardrow)
                 keyboardrow = list()
-        
+
         if len(keyboardrow) > 0:
             keyboard.append(keyboardrow)
-        
+
         self._log_debug(msg)
         self._log_debug(keyboard)
         if msgsuffix is not None:
@@ -719,25 +611,25 @@ class TelegramBot(BaseClass):
             target=target_id,
             message=self._escape_markdown(msg),
             inline_keyboard=keyboard)
-        
+
     def _get_state_filtered(self):
         statedict = self.get_state()
         filtered_statedict=dict()
         for entity in statedict:
             #filter by blacklist
-            if self._filter_blacklist is not None:              
+            if self._filter_blacklist is not None:
                 prepare="|".join(self._filter_blacklist)
                 blacklistregex=f"({prepare})"
             else:
-                blacklistregex=""   
-            
-            #filter by whitelist  
+                blacklistregex=""
+
+            #filter by whitelist
             if self._filter_whitelist is not None:
                 prepare="|".join(self._filter_whitelist)
                 whitelistregex=f"({prepare})"
             else:
                 whitelistregex=".*"
-            
+
             #apply filter
             self._log_debug(entity)
             blackl = re.search(blacklistregex, entity, re.IGNORECASE)
@@ -745,12 +637,12 @@ class TelegramBot(BaseClass):
             if (blackl is None or blackl.group(0)=='') and (whitel is not None and whitel.group(0)!=''):
                 self._log_debug(f'adding: {entity}')
                 filtered_statedict.update({entity: statedict.get(entity)})
-            
+
         return filtered_statedict
 
     def _cmd_turn_on_automation(self, target_id):
         msg = "Which automation do you want to turn on?\n\n"
-        statedict = self._get_state_filtered()
+        statedict = self.statedict #self._get_state_filtered()
         keyboard_options=list()
         for entity in statedict:
             if re.match('^automation.*', entity, re.IGNORECASE):
@@ -758,9 +650,9 @@ class TelegramBot(BaseClass):
                 hashvalue = self._get_hash_from_entityid(entity)
                 desc = self._getid(statedict,entity)
                 keyboard_options.append({
-                    'description': f"{desc}", 
+                    'description': f"{desc}",
                     'url':f"/clb_turnon_autom?entity_id={hashvalue}"})
-        
+
         self._build_keyboard_answer(keyboard_options, target_id, msg)
 
     def _clb_turn_on_autom(self, target_id, paramdict):
@@ -786,7 +678,7 @@ class TelegramBot(BaseClass):
 
     def _cmd_turn_off_automation(self, target_id):
         msg = "Which automation do you want to turn off?\n\n"
-        statedict = self._get_state_filtered()
+        statedict = self.statedict #self._get_state_filtered()
         keyboard_options=list()
         for entity in statedict:
             if re.match('^automation.*', entity, re.IGNORECASE):
@@ -794,9 +686,9 @@ class TelegramBot(BaseClass):
                 hashvalue = self._get_hash_from_entityid(entity)
                 desc = self._getid(statedict,entity)
                 keyboard_options.append({
-                    'description': f"{desc}", 
+                    'description': f"{desc}",
                     'url':f"/clb_turnoff_autom?entity_id={hashvalue}"})
-        
+
         self._build_keyboard_answer(keyboard_options, target_id, msg)
 
     def _clb_turn_off_autom(self, target_id, paramdict):
@@ -830,9 +722,9 @@ class TelegramBot(BaseClass):
                 hashvalue = self._get_hash_from_entityid(entity)
                 desc = self._getid(statedict,entity)
                 keyboard_options.append({
-                    'description': f"{desc}", 
+                    'description': f"{desc}",
                     'url':f"/clb_trigger_autom?entity_id={hashvalue}"})
-        
+
         self._build_keyboard_answer(keyboard_options, target_id, msg)
 
     def _clb_trigger_autom(self, target_id, paramdict):
@@ -945,11 +837,9 @@ class TelegramBot(BaseClass):
                     message = entry.get('message',None)
                     msg += f"{timestamp} {errorlevel} {message}\n"
                 self._send_message(msg, target_id)
-                
+
     def _turn_on(self, entity_id):
-        if re.match('^light.*', entity_id, re.IGNORECASE):
-            self.call_service("light/turn_on", entity_id=entity_id)
-        elif re.match('^automation.*', entity_id, re.IGNORECASE):
+        if re.match('^automation.*', entity_id, re.IGNORECASE):
             self.call_service("automation/turn_on", entity_id=entity_id)
         elif re.match('^climate.*', entity_id, re.IGNORECASE):
             self.call_service("climate/turn_on", entity_id=entity_id)
@@ -963,17 +853,13 @@ class TelegramBot(BaseClass):
             self.call_service("scene/turn_on", entity_id=entity_id)
         elif re.match('^script.*', entity_id, re.IGNORECASE):
             self.call_service("script/turn_on", entity_id=entity_id)
-        elif re.match('^switch.*', entity_id, re.IGNORECASE):
-            self.call_service("switch/turn_on", entity_id=entity_id)
         elif re.match('^vacuum.*', entity_id, re.IGNORECASE):
             self.call_service("vacuum/turn_on", entity_id=entity_id)
         else:
             self._log_error("Unsupported entity type for command turn_on")
-        
+
     def _turn_off(self, entity_id):
-        if re.match('^light.*', entity_id, re.IGNORECASE):
-            self.call_service("light/turn_off", entity_id=entity_id)
-        elif re.match('^automation.*', entity_id, re.IGNORECASE):
+        if re.match('^automation.*', entity_id, re.IGNORECASE):
             self.call_service("automation/turn_off", entity_id=entity_id)
         elif re.match('^climate.*', entity_id, re.IGNORECASE):
             self.call_service("climate/turn_off", entity_id=entity_id)
@@ -987,9 +873,10 @@ class TelegramBot(BaseClass):
             self.call_service("scene/turn_off", entity_id=entity_id)
         elif re.match('^script.*', entity_id, re.IGNORECASE):
             self.call_service("script/turn_off", entity_id=entity_id)
-        elif re.match('^switch.*', entity_id, re.IGNORECASE):
-            self.call_service("switch/turn_off", entity_id=entity_id)
         elif re.match('^vacuum.*', entity_id, re.IGNORECASE):
             self.call_service("vacuum/turn_off", entity_id=entity_id)
         else:
             self._log_error("Unsupported entity type for command turn_off")
+
+
+
